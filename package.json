@@ -1,0 +1,48 @@
+{
+    "name": "multi-agent-runner",
+    "displayName": "MultiAgentRunner",
+    "description": "A VS Code extension for running multiple agents.",
+    "version": "0.0.1",
+    "engines": {
+        "vscode": "^1.85.0"
+    },
+    "categories": [
+        "Other"
+    ],
+    "main": "./out/extension.js",
+    "contributes": {
+        "viewsContainers": {
+            "activitybar": [
+                {
+                    "id": "multi-agent-runner",
+                    "title": "Multi-Agent Runner",
+                    "icon": "media/icon.svg"
+                }
+            ]
+        },
+        "views": {
+            "multi-agent-runner": [
+                {
+                    "id": "multi-agent-view",
+                    "name": "Agents"
+                }
+            ]
+        }
+    },
+    "scripts": {
+        "vscode:prepublish": "npm run compile",
+        "compile": "tsc -p ./",
+        "watch": "tsc -watch -p ./",
+        "pretest": "npm run compile && npm run lint",
+        "lint": "eslint src --ext ts",
+        "test": "node ./out/test/runTest.js"
+    },
+    "devDependencies": {
+        "@types/vscode": "^1.85.0",
+        "@types/node": "18.x",
+        "typescript": "^5.3.3",
+        "eslint": "^8.54.0",
+        "@typescript-eslint/eslint-plugin": "^6.11.0",
+        "@typescript-eslint/parser": "^6.11.0"
+    }
+}
