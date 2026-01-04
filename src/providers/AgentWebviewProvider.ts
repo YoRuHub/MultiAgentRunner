@@ -6,7 +6,7 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
     private _view?: vscode.WebviewView;
 
     constructor(
-        private readonly _extensionUri: vscode.Uri,
+        private readonly _context: vscode.ExtensionContext,
     ) { }
 
     public resolveWebviewView(
@@ -18,7 +18,7 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
 
         webviewView.webview.options = {
             enableScripts: true,
-            localResourceRoots: [this._extensionUri]
+            localResourceRoots: [this._context.extensionUri]
         };
 
         this.update();
@@ -40,8 +40,7 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
 
     public update() {
         if (this._view) {
-            const config = vscode.workspace.getConfiguration('multiAgentRunner');
-            const fileName = config.get<string>(CONFIG_KEYS.LOADED_FILE_NAME) || '';
+            const fileName = this._context.workspaceState.get<string>(CONFIG_KEYS.LOADED_FILE_NAME) || '';
             const isLoaded = !!fileName;
 
             this._view.webview.html = this._getHtmlForWebview(this._view.webview, fileName, isLoaded);

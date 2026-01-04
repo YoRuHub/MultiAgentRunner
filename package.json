@@ -22,11 +22,6 @@
                     ],
                     "default": "Cursor",
                     "description": "Select the service for the agent CLI."
-                },
-                "multiAgentRunner.loadedFileName": {
-                    "type": "string",
-                    "default": "",
-                    "description": "Internal use: store loaded file name for UI display."
                 }
             }
         },

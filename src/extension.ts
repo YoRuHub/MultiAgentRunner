@@ -8,7 +8,7 @@ export function activate(context: vscode.ExtensionContext) {
     console.log('Multi-Agent Runner is now active');
 
     // Providers
-    const agentWebviewProvider = new AgentWebviewProvider(context.extensionUri);
+    const agentWebviewProvider = new AgentWebviewProvider(context);
     context.subscriptions.push(
         vscode.window.registerWebviewViewProvider(AgentWebviewProvider.viewType, agentWebviewProvider)
     );
