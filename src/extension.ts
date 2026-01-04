@@ -1,13 +1,22 @@
 import * as vscode from 'vscode';
+import { registerSettingsCommands } from './commands/SettingsCommands';
+import { registerPathCommands } from './commands/PathCommands';
+import { registerExecutionCommands } from './commands/ExecutionCommands';
+import { AgentWebviewProvider } from './providers/AgentWebviewProvider';
 
 export function activate(context: vscode.ExtensionContext) {
-	console.log('Congratulations, your extension "multi-agent-runner" is now active!');
+    console.log('Multi-Agent Runner is now active');
 
-	let disposable = vscode.commands.registerCommand('multi-agent-runner.helloWorld', () => {
-		vscode.window.showInformationMessage('Hello World from MultiAgentRunner!');
-	});
+    // Providers
+    const agentWebviewProvider = new AgentWebviewProvider(context.extensionUri);
+    context.subscriptions.push(
+        vscode.window.registerWebviewViewProvider(AgentWebviewProvider.viewType, agentWebviewProvider)
+    );
 
-	context.subscriptions.push(disposable);
+    // Register Commands
+    registerSettingsCommands(context);
+    registerPathCommands(context, agentWebviewProvider);
+    registerExecutionCommands(context);
 }
 
-export function deactivate() {}
+export function deactivate() { }

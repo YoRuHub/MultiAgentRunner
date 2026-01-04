@@ -11,6 +11,68 @@
     ],
     "main": "./out/extension.js",
     "contributes": {
+        "configuration": {
+            "title": "Multi-Agent Runner",
+            "properties": {
+                "multiAgentRunner.agentService": {
+                    "type": "string",
+                    "enum": [
+                        "Cursor",
+                        "Gemini"
+                    ],
+                    "default": "Cursor",
+                    "description": "Select the service for the agent CLI."
+                },
+                "multiAgentRunner.loadedFileName": {
+                    "type": "string",
+                    "default": "",
+                    "description": "Internal use: store loaded file name for UI display."
+                }
+            }
+        },
+        "commands": [
+            {
+                "command": "multi-agent-runner.openSettings",
+                "title": "Open Settings",
+                "icon": "$(settings-gear)"
+            },
+            {
+                "command": "multi-agent-runner.selectYamlPath",
+                "title": "YAMLを選択",
+                "icon": "$(file-code)"
+            },
+            {
+                "command": "multi-agent-runner.runAgent",
+                "title": "実行",
+                "icon": "$(play)"
+            },
+            {
+                "command": "multi-agent-runner.clearYaml",
+                "title": "クリア",
+                "icon": "$(clear-all)"
+            }
+        ],
+        "menus": {
+            "view/title": [
+                {
+                    "command": "multi-agent-runner.openSettings",
+                    "group": "navigation",
+                    "when": "view == multi-agent-view"
+                }
+            ],
+            "view/item/context": [
+                {
+                    "command": "multi-agent-runner.runAgent",
+                    "group": "inline",
+                    "when": "view == multi-agent-view && viewItem == yamlFile"
+                },
+                {
+                    "command": "multi-agent-runner.clearYaml",
+                    "group": "inline",
+                    "when": "view == multi-agent-view && viewItem == yamlFile"
+                }
+            ]
+        },
         "viewsContainers": {
             "activitybar": [
                 {
@@ -24,7 +86,9 @@
             "multi-agent-runner": [
                 {
                     "id": "multi-agent-view",
-                    "name": "Agents"
+                    "name": "Agents",
+                    "type": "webview",
+                    "icon": "media/icon.svg"
                 }
             ]
         }
