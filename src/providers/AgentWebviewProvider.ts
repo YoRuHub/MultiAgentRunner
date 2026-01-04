@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { COMMANDS, CONFIG_KEYS, ICONS } from '../constants';
+import { validateCliAvailability } from '../utils/ValidationUtils';
 
 export class AgentWebviewProvider implements vscode.WebviewViewProvider {
     public static readonly viewType = 'multi-agent-view';
@@ -34,20 +35,33 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
                 case 'clearYaml':
                     vscode.commands.executeCommand(COMMANDS.CLEAR_YAML);
                     break;
+                case 'openSettings':
+                    vscode.commands.executeCommand(COMMANDS.OPEN_SETTINGS);
+                    break;
             }
         });
     }
 
-    public update() {
+    public async update() {
         if (this._view) {
             const fileName = this._context.workspaceState.get<string>(CONFIG_KEYS.LOADED_FILE_NAME) || '';
             const isLoaded = !!fileName;
 
-            this._view.webview.html = this._getHtmlForWebview(this._view.webview, fileName, isLoaded);
+            let isCliAvailable = true;
+            let serviceName = 'Cursor'; // Default
+
+            if (isLoaded) {
+                const config = vscode.workspace.getConfiguration('multiAgentRunner');
+                serviceName = config.get<string>(CONFIG_KEYS.AGENT_SERVICE) || 'Cursor';
+                const command = serviceName === 'Cursor' ? 'cursor' : 'gemini';
+                isCliAvailable = await validateCliAvailability(command);
+            }
+
+            this._view.webview.html = this._getHtmlForWebview(this._view.webview, fileName, isLoaded, isCliAvailable, serviceName);
         }
     }
 
-    private _getHtmlForWebview(webview: vscode.Webview, fileName: string, isLoaded: boolean) {
+    private _getHtmlForWebview(webview: vscode.Webview, fileName: string, isLoaded: boolean, isCliAvailable: boolean, serviceName: string) {
         return `
             <!DOCTYPE html>
             <html lang="en">
@@ -75,18 +89,27 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
                         gap: 12px;
                         background: var(--vscode-sideBar-background);
                     }
+                    .card.error {
+                        border-color: var(--vscode-inputValidation-errorBorder);
+                        background: var(--vscode-inputValidation-errorBackground);
+                    }
                     .icon-container {
                         display: flex;
                         align-items: center;
                         justify-content: center;
-                        color: var(--vscode-foreground);
-                        opacity: 0.8;
+                        color: rgba(255, 255, 255, 0.85); /* Softer white instead of pure white */
                     }
                     .file-name {
                         flex: 1;
                         font-size: 13px;
                         word-break: break-all;
                         font-family: var(--vscode-editor-font-family);
+                    }
+                    .error-message {
+                        flex: 1;
+                        font-size: 12px;
+                        color: rgba(255, 255, 255, 0.85); /* Consistent soft white */
+                        word-break: break-word;
                     }
                     .actions {
                         display: flex;
@@ -100,8 +123,7 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
                         display: flex;
                         align-items: center;
                         justify-content: center;
-                        color: var(--vscode-foreground);
-                        opacity: 0.6;
+                        color: rgba(255, 255, 255, 0.85); /* Consistent soft white */
                         transition: opacity 0.2s, background 0.2s;
                         border-radius: 4px;
                     }
@@ -136,7 +158,25 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
             </head>
             <body>
                 <div class="container">
-                    ${isLoaded ? `
+                    ${!isLoaded ? `
+                        <div class="empty-state">
+                            <button class="empty-btn" onclick="selectYaml()">YAMLを選択</button>
+                        </div>
+                    ` : !isCliAvailable ? `
+                        <div class="card error">
+                            <div class="icon-container">
+                                ${ICONS.COPILOT_NOT_CONNECTED}
+                            </div>
+                            <div class="error-message">
+                                CLI not found: ${serviceName}
+                            </div>
+                            <div class="actions">
+                                <button class="action-btn" onclick="clearYaml()" title="クリア">
+                                    ${ICONS.CLEAR_ALL}
+                                </button>
+                            </div>
+                        </div>
+                    ` : `
                         <div class="card">
                             <div class="icon-container">
                                 ${ICONS.COPILOT_LARGE}
@@ -151,10 +191,6 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
                                 </button>
                             </div>
                         </div>
-                    ` : `
-                        <div class="empty-state">
-                            <button class="empty-btn" onclick="selectYaml()">YAMLを選択</button>
-                        </div>
                     `}
                 </div>
 
@@ -163,9 +199,11 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
                     function selectYaml() { vscode.postMessage({ type: 'selectYaml' }); }
                     function runAgent() { vscode.postMessage({ type: 'runAgent' }); }
                     function clearYaml() { vscode.postMessage({ type: 'clearYaml' }); }
+                    function openSettings() { vscode.postMessage({ type: 'openSettings' }); }
                 </script>
             </body>
             </html>
         `;
     }
 }
+
