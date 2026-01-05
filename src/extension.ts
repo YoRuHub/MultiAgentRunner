@@ -16,7 +16,7 @@ export function activate(context: vscode.ExtensionContext) {
     // Register Commands
     registerSettingsCommands(context);
     registerPathCommands(context, agentWebviewProvider);
-    registerExecutionCommands(context);
+    registerExecutionCommands(context, agentWebviewProvider);
 }
 
 export function deactivate() { }

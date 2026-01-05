@@ -16,6 +16,7 @@ export function registerPathCommands(context: vscode.ExtensionContext, agentWebv
             const fileName = fileUri[0].fsPath.split(/[\\/]/).pop() || fileUri[0].fsPath;
             await context.workspaceState.update(CONFIG_KEYS.LOADED_FILE_NAME, fileName);
 
+            agentWebviewProvider.clearTasks();
             agentWebviewProvider.update();
             vscode.commands.executeCommand('setContext', 'multiAgentRunnerYamlLoaded', true);
             vscode.window.showInformationMessage(`Loaded: ${fileUri[0].fsPath}`);
@@ -24,6 +25,7 @@ export function registerPathCommands(context: vscode.ExtensionContext, agentWebv
 
     let clearYaml = vscode.commands.registerCommand(COMMANDS.CLEAR_YAML, async () => {
         await context.workspaceState.update(CONFIG_KEYS.LOADED_FILE_NAME, '');
+        agentWebviewProvider.clearTasks();
         agentWebviewProvider.update();
         vscode.commands.executeCommand('setContext', 'multiAgentRunnerYamlLoaded', false);
     });

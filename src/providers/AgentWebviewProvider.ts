@@ -2,9 +2,18 @@ import * as vscode from 'vscode';
 import { COMMANDS, CONFIG_KEYS, ICONS } from '../constants';
 import { validateCliAvailability } from '../utils/ValidationUtils';
 
+export interface TaskItem {
+    id: string;
+    description: string;
+    checkContent: string;
+    status: 'pending' | 'running' | 'completed' | 'failed';
+}
+
 export class AgentWebviewProvider implements vscode.WebviewViewProvider {
     public static readonly viewType = 'multi-agent-view';
     private _view?: vscode.WebviewView;
+    private _tasks: TaskItem[] = [];
+    private _isProcessing: boolean = false;
 
     constructor(
         private readonly _context: vscode.ExtensionContext,
@@ -42,7 +51,19 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
         });
     }
 
-    public async update() {
+    public clearTasks() {
+        this._tasks = [];
+        this._isProcessing = false;
+    }
+
+    public async update(tasks?: TaskItem[], isProcessing?: boolean) {
+        if (tasks) {
+            this._tasks = tasks;
+        }
+        if (isProcessing !== undefined) {
+            this._isProcessing = isProcessing;
+        }
+
         if (this._view) {
             const fileName = this._context.workspaceState.get<string>(CONFIG_KEYS.LOADED_FILE_NAME) || '';
             const isLoaded = !!fileName;
@@ -50,18 +71,18 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
             let isCliAvailable = true;
             let serviceName = 'Cursor'; // Default
 
-            if (isLoaded) {
+            if (isLoaded && this._tasks.length === 0) {
                 const config = vscode.workspace.getConfiguration('multiAgentRunner');
                 serviceName = config.get<string>(CONFIG_KEYS.AGENT_SERVICE) || 'Cursor';
                 const command = serviceName === 'Cursor' ? 'cursor' : 'gemini';
                 isCliAvailable = await validateCliAvailability(command);
             }
 
-            this._view.webview.html = this._getHtmlForWebview(this._view.webview, fileName, isLoaded, isCliAvailable, serviceName);
+            this._view.webview.html = this._getHtmlForWebview(this._view.webview, fileName, isLoaded, isCliAvailable, serviceName, this._isProcessing);
         }
     }
 
-    private _getHtmlForWebview(webview: vscode.Webview, fileName: string, isLoaded: boolean, isCliAvailable: boolean, serviceName: string) {
+    private _getHtmlForWebview(webview: vscode.Webview, fileName: string, isLoaded: boolean, isCliAvailable: boolean, serviceName: string, isProcessing: boolean) {
         return `
             <!DOCTYPE html>
             <html lang="en">
@@ -80,6 +101,14 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
                         flex-direction: column;
                         gap: 12px;
                     }
+                    .section-title {
+                        font-size: 11px;
+                        font-weight: bold;
+                        text-transform: uppercase;
+                        color: var(--vscode-descriptionForeground);
+                        margin-bottom: 4px;
+                        padding-left: 4px;
+                    }
                     .card {
                         border: 1px solid var(--vscode-widget-border);
                         border-radius: 8px;
@@ -88,6 +117,83 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
                         align-items: center;
                         gap: 12px;
                         background: var(--vscode-sideBar-background);
+                    }
+                    .task-card {
+                        flex-direction: column;
+                        align-items: stretch;
+                        gap: 8px;
+                        margin-bottom: 8px;
+                    }
+                    .task-header {
+                        display: flex;
+                        align-items: center;
+                        gap: 8px;
+                    }
+                    .task-id {
+                        font-family: var(--vscode-editor-font-family);
+                        font-size: 11px;
+                        background: var(--vscode-badge-background);
+                        color: var(--vscode-badge-foreground);
+                        padding: 2px 6px;
+                        border-radius: 4px;
+                    }
+                    .task-status {
+                        width: 8px;
+                        height: 8px;
+                        border-radius: 50%;
+                    }
+                    .status-pending { background: var(--vscode-descriptionForeground); opacity: 0.5; }
+                    .status-running { background: var(--vscode-progressBar-background); animation: pulse 1.5s infinite; }
+                    .status-completed { background: #4ec9b0; }
+                    .status-failed { background: var(--vscode-errorForeground); }
+
+                    @keyframes pulse {
+                        0% { opacity: 0.4; transform: scale(0.9); }
+                        50% { opacity: 1; transform: scale(1.1); }
+                        100% { opacity: 0.4; transform: scale(0.9); }
+                    }
+
+                    @keyframes rotate {
+                        from { transform: rotate(0deg); }
+                        to { transform: rotate(360deg); }
+                    }
+
+                    @keyframes blink {
+                        0%, 100% { opacity: 0.3; }
+                        50% { opacity: 1; }
+                    }
+
+                    .rotating {
+                        animation: rotate 2s linear infinite;
+                    }
+
+                    .dots-container {
+                        display: flex;
+                        justify-content: center;
+                        gap: 8px;
+                        margin: 4px 0 12px 0;
+                        font-size: 24px;
+                        font-weight: bold;
+                        color: rgba(255, 255, 255, 0.85);
+                        line-height: 1;
+                    }
+
+                    .dot {
+                        animation: blink 1.4s infinite both;
+                    }
+                    .dot:nth-child(2) { animation-delay: 0.2s; }
+                    .dot:nth-child(3) { animation-delay: 0.4s; }
+
+                    .task-body {
+                        font-size: 12px;
+                        line-height: 1.4;
+                    }
+                    .task-check {
+                        font-size: 11px;
+                        color: var(--vscode-descriptionForeground);
+                        margin-top: 4px;
+                        border-left: 2px solid var(--vscode-widget-border);
+                        padding-left: 8px;
                     }
                     .card.error {
                         border-color: var(--vscode-inputValidation-errorBorder);
@@ -162,35 +268,43 @@ export class AgentWebviewProvider implements vscode.WebviewViewProvider {
                         <div class="empty-state">
                             <button class="empty-btn" onclick="selectYaml()">YAMLを選択</button>
                         </div>
-                    ` : !isCliAvailable ? `
-                        <div class="card error">
-                            <div class="icon-container">
-                                ${ICONS.COPILOT_NOT_CONNECTED}
-                            </div>
-                            <div class="error-message">
-                                CLI not found: ${serviceName}
-                            </div>
-                            <div class="actions">
-                                <button class="action-btn" onclick="clearYaml()" title="クリア">
-                                    ${ICONS.CLEAR_ALL}
-                                </button>
-                            </div>
-                        </div>
                     ` : `
-                        <div class="card">
-                            <div class="icon-container">
-                                ${ICONS.COPILOT_LARGE}
+                        <div class="card ${isProcessing ? 'processing' : ''}">
+                            <div class="icon-container ${isProcessing ? 'rotating' : ''}">
+                                ${isProcessing ? ICONS.SYNC : ICONS.COPILOT_LARGE}
                             </div>
                             <div class="file-name">${fileName}</div>
                             <div class="actions">
-                                <button class="action-btn" onclick="clearYaml()" title="クリア">
+                                <button class="action-btn" onclick="clearYaml()" title="クリア" ${isProcessing ? 'disabled' : ''}>
                                     ${ICONS.CLEAR_ALL}
                                 </button>
-                                <button class="action-btn" onclick="runAgent()" title="実行">
+                                <button class="action-btn" onclick="runAgent()" title="実行" ${isProcessing ? 'disabled' : ''}>
                                     ${ICONS.PLAY}
                                 </button>
                             </div>
                         </div>
+                        ${isProcessing ? `
+                            <div class="dots-container">
+                                <span class="dot">.</span>
+                                <span class="dot">.</span>
+                                <span class="dot">.</span>
+                            </div>
+                        ` : ''}
+                        ${this._tasks.length > 0 ? `
+                            <div class="header-row" style="display:flex; justify-content:space-between; align-items:center; margin-top: 12px;">
+                                <div class="section-title">TASKS</div>
+                            </div>
+                            ${this._tasks.map(task => `
+                                <div class="card task-card">
+                                    <div class="task-header">
+                                        <div class="task-status status-${task.status}"></div>
+                                        <div class="task-id">${task.id}</div>
+                                    </div>
+                                    <div class="task-body">${task.description}</div>
+                                    <div class="task-check">確認: ${task.checkContent}</div>
+                                </div>
+                            `).join('')}
+                        ` : ''}
                     `}
                 </div>
 
